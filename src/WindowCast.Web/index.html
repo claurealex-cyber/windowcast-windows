@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d0d1a">
+    <link rel="manifest" href="/manifest.json">
+    <title>WindowCast</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <!-- Auth -->
+    <div id="auth-section">
+        <div class="auth-card">
+            <h1>WindowCast</h1>
+            <p>Enter your access token to connect</p>
+            <input type="text" id="token-input" placeholder="Access token" autocomplete="off">
+            <label><input type="checkbox" id="remember-check" checked> Remember on this device</label>
+            <button id="login-btn">Connect</button>
+            <p id="auth-error" class="error hidden"></p>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="app-section" style="display:none">
+        <!-- Tab Bar -->
+        <div id="tab-bar">
+            <div id="tabs"></div>
+            <button id="add-tab-btn" title="Add session">+</button>
+        </div>
+
+        <!-- Viewer Container -->
+        <div id="viewer-container"></div>
+
+        <!-- Window Picker Overlay -->
+        <div id="picker-overlay" class="hidden">
+            <div id="picker-header">
+                <h2>Select a window to stream</h2>
+                <div id="picker-modes">
+                    <button class="mode-btn active" data-mode="app">By App</button>
+                    <button class="mode-btn" data-mode="window">By Window</button>
+                    <button class="mode-btn" data-mode="display">Desktop</button>
+                    <button class="mode-btn" data-mode="sessions">Sessions</button>
+                </div>
+                <button id="picker-close" class="hidden">&times;</button>
+            </div>
+            <div id="picker-content"></div>
+        </div>
+
+        <!-- Special Keys Toolbar -->
+        <div id="toolbar" class="hidden">
+            <button data-key="Escape">Esc</button>
+            <button data-key="Tab">Tab</button>
+            <button data-mod="ctrl" class="mod-btn">Ctrl</button>
+            <button data-mod="alt" class="mod-btn">Alt</button>
+            <button data-mod="meta" class="mod-btn">Cmd</button>
+            <button data-mod="shift" class="mod-btn">Shift</button>
+            <button data-key="ArrowUp">&uarr;</button>
+            <button data-key="ArrowDown">&darr;</button>
+            <button data-key="ArrowLeft">&larr;</button>
+            <button data-key="ArrowRight">&rarr;</button>
+            <button data-key="F1">F1</button>
+            <button data-key="F2">F2</button>
+            <button data-key="F3">F3</button>
+            <button data-key="F4">F4</button>
+            <button data-key="F5">F5</button>
+            <button data-key="F6">F6</button>
+            <button data-key="F7">F7</button>
+            <button data-key="F8">F8</button>
+            <button data-key="F9">F9</button>
+            <button data-key="F10">F10</button>
+            <button data-key="F11">F11</button>
+            <button data-key="F12">F12</button>
+            <button data-key="Delete">Del</button>
+            <button data-key="Home">Home</button>
+            <button data-key="End">End</button>
+            <button data-key="PageUp">PgUp</button>
+            <button data-key="PageDown">PgDn</button>
+            <button data-key="Enter">Enter</button>
+            <button id="kb-toggle" title="Toggle keyboard">&#9000;</button>
+        </div>
+
+        <!-- Hidden input for mobile soft keyboard -->
+        <input id="hidden-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="text">
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
