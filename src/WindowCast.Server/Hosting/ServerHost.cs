@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using WindowCast.Server.Api;
 using WindowCast.Server.Auth;
 using WindowCast.Server.Discovery;
+using WindowCast.Server.Input;
 using WindowCast.Server.Sessions;
 
 namespace WindowCast.Server.Hosting;
@@ -11,7 +12,7 @@ namespace WindowCast.Server.Hosting;
 /// </summary>
 public sealed class ServerHost : IAsyncDisposable
 {
-    public const string Version = "0.2.0-m2";
+    public const string Version = "0.3.0-m3";
     private const string HtmlCsp = "default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:";
 
     private readonly WebApplication _app;
@@ -91,6 +92,7 @@ public sealed class ServerHost : IAsyncDisposable
         builder.Services.AddSingleton<WindowDiscovery>();
         builder.Services.AddSingleton<AppDiscovery>();
         builder.Services.AddSingleton<SessionManager>();
+        builder.Services.AddSingleton<InputInjector>();
 
         var app = builder.Build();
 
@@ -117,6 +119,8 @@ public sealed class ServerHost : IAsyncDisposable
 
         ApiRoutes.Map(app);
         StreamRoutes.Map(app);
+        var injector = app.Services.GetRequiredService<InputInjector>();
+        app.Services.GetRequiredService<SessionManager>().InputReceived += injector.Process;
         if (!options.SkipAppWarmup) app.Services.GetRequiredService<AppDiscovery>().WarmUpAsync();
         return app;
     }

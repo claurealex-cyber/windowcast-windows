@@ -11,6 +11,7 @@ var width = 1280; var height = 720; var x = 100; var y = 100;
 var title = "WindowCast Test Pattern";
 var resizeEvery = 0.0; var moveEvery = 0.0; var closeAfter = 0.0; var minimizeAt = 0.0; var restoreAt = 0.0;
 var targetFps = 60;
+string? logInput = null;
 for (var i = 0; i < args.Length; i++)
 {
     switch (args[i])
@@ -24,11 +25,12 @@ for (var i = 0; i < args.Length; i++)
         case "--minimize-at": minimizeAt = double.Parse(args[++i]); break;
         case "--restore-at": restoreAt = double.Parse(args[++i]); break;
         case "--fps": targetFps = int.Parse(args[++i]); break;
+        case "--log-input": logInput = args[++i]; break;
     }
 }
 
 ApplicationConfiguration.Initialize();
-Application.Run(new PatternForm(width, height, x, y, title, resizeEvery, moveEvery, closeAfter, minimizeAt, restoreAt, targetFps));
+Application.Run(new PatternForm(width, height, x, y, title, resizeEvery, moveEvery, closeAfter, minimizeAt, restoreAt, targetFps, logInput));
 
 sealed class PatternForm : Form
 {
@@ -44,8 +46,25 @@ sealed class PatternForm : Form
     private readonly Font _big = new("Consolas", 40, FontStyle.Bold);
     private readonly Font _small = new("Consolas", 14);
 
-    public PatternForm(int w, int h, int x, int y, string title, double resizeEvery, double moveEvery, double closeAfter, double minimizeAt, double restoreAt, int fps)
+    private readonly StreamWriter? _log;
+
+    public PatternForm(int w, int h, int x, int y, string title, double resizeEvery, double moveEvery, double closeAfter, double minimizeAt, double restoreAt, int fps, string? logInput)
     {
+        if (logInput is not null)
+        {
+            _log = new StreamWriter(logInput, false) { AutoFlush = true };
+            KeyPreview = true;
+            Shown += (_, _) => Log($"origin {PointToScreen(Point.Empty).X} {PointToScreen(Point.Empty).Y} client {ClientSize.Width} {ClientSize.Height}");
+            MouseDown += (_, e) => { var s = PointToScreen(e.Location); Log($"down {e.Button} {e.X} {e.Y} screen {s.X} {s.Y} clicks {e.Clicks}"); };
+            MouseUp += (_, e) => Log($"up {e.Button} {e.X} {e.Y}");
+            MouseWheel += (_, e) => Log($"wheel {e.Delta} {e.X} {e.Y}");
+            KeyDown += (_, e) => Log($"keydown {e.KeyCode} ctrl={e.Control} shift={e.Shift} alt={e.Alt}");
+            KeyUp += (_, e) => Log($"keyup {e.KeyCode}");
+            KeyPress += (_, e) => Log($"char {(int)e.KeyChar}");
+            Activated += (_, _) => Log("activated");
+            Move += (_, _) => Log($"moved {PointToScreen(Point.Empty).X} {PointToScreen(Point.Empty).Y}");
+            Resize += (_, _) => Log($"resized {ClientSize.Width} {ClientSize.Height} state {WindowState}");
+        }
         Text = title;
         StartPosition = FormStartPosition.Manual;
         Location = new Point(x, y);
@@ -58,6 +77,8 @@ sealed class PatternForm : Form
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
     }
+
+    private void Log(string line) { lock (this) { _log?.WriteLine($"{_clock.ElapsedMilliseconds} {line}"); } }
 
     private void Tick()
     {

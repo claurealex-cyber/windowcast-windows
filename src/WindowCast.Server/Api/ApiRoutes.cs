@@ -1,6 +1,7 @@
 using System.Text.Json;
 using WindowCast.Server.Discovery;
 using WindowCast.Server.Hosting;
+using WindowCast.Server.Input;
 using WindowCast.Server.Sessions;
 
 namespace WindowCast.Server.Api;
@@ -93,9 +94,44 @@ public static class ApiRoutes
             catch (Exception ex) { return Error(500, ex.Message); }
         });
 
-        // Window management arrives in M3.
-        foreach (var action in new[] { "resize", "maximize", "half", "restore" })
-            app.MapPost($"/api/sessions/{{id}}/{action}", () => Error(501, "Window control arrives in M3"));
+        app.MapPost("/api/sessions/{id}/resize", async (string id, HttpContext ctx, SessionManager sm) =>
+        {
+            var body = await ReadBody(ctx);
+            if (!TryLong(body, "width", out var w) || !TryLong(body, "height", out var h)) return Error(400, "Missing width/height");
+            var session = sm.Get(id);
+            if (session is null || session.IsDisplay) return Error(404, "Window not found");
+            return WindowControl.Resize(session.Handle, (int)w, (int)h) ? Results.Json(new { resized = true }) : Error(500, "Resize failed");
+        });
+        app.MapPost("/api/sessions/{id}/maximize", (string id, SessionManager sm) =>
+        {
+            var session = sm.Get(id);
+            if (session is null || session.IsDisplay) return Error(404, "Window not found");
+            return WindowControl.Maximize(session.Handle) ? Results.Json(new { maximized = true }) : Error(500, "Maximize failed");
+        });
+        app.MapPost("/api/sessions/{id}/half", async (string id, HttpContext ctx, SessionManager sm) =>
+        {
+            var body = await ReadBody(ctx);
+            var left = !(body.ValueKind == JsonValueKind.Object && body.TryGetProperty("left", out var l) && l.ValueKind == JsonValueKind.False);
+            var session = sm.Get(id);
+            if (session is null || session.IsDisplay) return Error(404, "Window not found");
+            return WindowControl.Half(session.Handle, left) ? Results.Json(new { halved = true }) : Error(500, "Snap failed");
+        });
+        app.MapPost("/api/sessions/{id}/restore", (string id, SessionManager sm) =>
+        {
+            var session = sm.Get(id);
+            if (session is null || session.IsDisplay) return Error(404, "Window not found");
+            WindowControl.Restore(session.Handle);
+            return Results.Text("ok");
+        });
+        app.MapPost("/api/sessions/{id}/move", async (string id, HttpContext ctx, SessionManager sm) =>
+        {
+            var body = await ReadBody(ctx);
+            if (!TryLong(body, "x", out var x) || !TryLong(body, "y", out var y)) return Error(400, "Missing x/y");
+            var session = sm.Get(id);
+            if (session is null || session.IsDisplay) return Error(404, "Window not found");
+            return WindowControl.Move(session.Handle, (int)x, (int)y) ? Results.Json(new { moved = true }) : Error(500, "Move failed");
+        });
+        app.MapGet("/api/input/stats", (InputInjector inj) => Results.Json(new { injected = inj.EventsInjected, dropped = inj.EventsDropped }));
 
         // No WebRTC on this server; the client is told via /api/status to use the WebSocket transport.
         app.MapPost("/api/sessions/{id}/offer", () => Error(501, "WebRTC not available; use the WebSocket transport"));

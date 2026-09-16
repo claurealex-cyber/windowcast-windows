@@ -16,8 +16,10 @@ public class SessionStressTests
     private readonly ITestOutputHelper _out;
     public SessionStressTests(ITestOutputHelper output) => _out = output;
 
-    private static string TestPatternExe()
+    internal static string TestPatternExe()
     {
+        var overridePath = Environment.GetEnvironmentVariable("WC_TESTPATTERN");
+        if (!string.IsNullOrEmpty(overridePath) && File.Exists(overridePath)) return overridePath;
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
