@@ -15,6 +15,7 @@ const state = {
     isFullscreen: false,
     escapeForwardPending: false,
     authFailed: false,
+    transport: 'webrtc',   // server reports 'ws-jpeg' / 'ws-h264' when it has no WebRTC (Windows)
 };
 
 // ─── Auth ───
@@ -72,6 +73,11 @@ function showAuth(err) {
 async function showApp() {
     $('auth-section').style.display = 'none';
     $('app-section').style.display = 'flex';
+    try {
+        const st = await safeJSON(await api('/api/status'));
+        if (st.transport) state.transport = st.transport;
+        debugLog(`Server ${st.platform || ''} ${st.version || ''} transport=${state.transport}`);
+    } catch {}
     // Auto-switch to Sessions tab if server has sessions but browser has none
     try {
         const resp = await api('/api/sessions');
@@ -591,8 +597,8 @@ function startIcePolling(ss) {
 }
 
 async function connectSession(sessionId, title, appName, iconUrl, bundleID, isDisplay = false) {
-    if (typeof RTCPeerConnection === 'undefined') {
-        debugLog('WebRTC unavailable, using WebSocket JPEG fallback');
+    if (typeof RTCPeerConnection === 'undefined' || state.transport !== 'webrtc') {
+        debugLog('Using WebSocket transport (' + state.transport + ')');
         await connectSessionWS(sessionId, title, appName, iconUrl, bundleID, isDisplay);
         return;
     }
@@ -790,6 +796,7 @@ async function connectSessionWS(sessionId, title, appName, iconUrl, bundleID, is
     };
 
     ws.onmessage = (e) => {
+        if (typeof e.data === 'string') { handleControl(sessionId, e.data); return; }
         if (e.data instanceof Blob && !pendingRender) {
             pendingRender = true;
             const url = URL.createObjectURL(e.data);

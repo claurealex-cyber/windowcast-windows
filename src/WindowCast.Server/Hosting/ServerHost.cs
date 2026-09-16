@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.StaticFiles;
 using WindowCast.Server.Api;
 using WindowCast.Server.Auth;
+using WindowCast.Server.Discovery;
+using WindowCast.Server.Sessions;
 
 namespace WindowCast.Server.Hosting;
 
@@ -9,7 +11,7 @@ namespace WindowCast.Server.Hosting;
 /// </summary>
 public sealed class ServerHost : IAsyncDisposable
 {
-    public const string Version = "0.1.0-m0";
+    public const string Version = "0.2.0-m2";
     private const string HtmlCsp = "default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:";
 
     private readonly WebApplication _app;
@@ -17,6 +19,7 @@ public sealed class ServerHost : IAsyncDisposable
     public int Port { get; }
     public TokenStore Tokens { get; }
     public AuthGuard Auth { get; }
+    public SessionManager Sessions => _app.Services.GetRequiredService<SessionManager>();
     public string LocalUrl => $"http://localhost:{Port}";
 
     private ServerHost(WebApplication app, int port, TokenStore tokens, AuthGuard auth)
@@ -58,6 +61,7 @@ public sealed class ServerHost : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _app.StopAsync();
+        Sessions.Dispose();
         await _app.DisposeAsync();
     }
 
@@ -84,6 +88,9 @@ public sealed class ServerHost : IAsyncDisposable
         builder.Services.AddSingleton(auth);
         builder.Services.AddSingleton(options.Clock);
         builder.Services.AddSingleton(options);
+        builder.Services.AddSingleton<WindowDiscovery>();
+        builder.Services.AddSingleton<AppDiscovery>();
+        builder.Services.AddSingleton<SessionManager>();
 
         var app = builder.Build();
 
@@ -109,6 +116,8 @@ public sealed class ServerHost : IAsyncDisposable
         });
 
         ApiRoutes.Map(app);
+        StreamRoutes.Map(app);
+        if (!options.SkipAppWarmup) app.Services.GetRequiredService<AppDiscovery>().WarmUpAsync();
         return app;
     }
 }

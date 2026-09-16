@@ -54,8 +54,13 @@ public sealed class WgcCapture : IDisposable
         _item = kind == CaptureTargetKind.Window
             ? CaptureInterop.CreateItemForWindow(handle)
             : CaptureInterop.CreateItemForMonitor(handle);
-        _item.Closed += (_, _) => RaiseClosed();
+        // Keep the delegate so it can be unsubscribed: the native item holds a CCW to this handler, the
+        // handler holds this object, this object holds the item's RCW -> a cycle the GC cannot see.
+        _closedHandler = (_, _) => RaiseClosed();
+        _item.Closed += _closedHandler;
     }
+
+    private readonly Windows.Foundation.TypedEventHandler<GraphicsCaptureItem, object> _closedHandler;
 
     private int _closedRaised;
     private Timer? _watchdog;
@@ -226,6 +231,7 @@ public sealed class WgcCapture : IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Stop();
+        try { _item.Closed -= _closedHandler; } catch { }
 
     }
 }

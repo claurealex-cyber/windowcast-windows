@@ -44,6 +44,7 @@ public static class CaptureSpike
         var cursor = true;
         var all = false;
         var exitOnClose = true;
+        var cycles = 0;
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -62,6 +63,7 @@ public static class CaptureSpike
                 case "--list": list = true; break;
                 case "--all": all = true; break;
                 case "--keep-going": exitOnClose = false; break;
+                case "--cycles": cycles = int.Parse(args[++i]); break;
             }
         }
 
@@ -97,6 +99,8 @@ public static class CaptureSpike
                 targets.Add(new Target { Label = $"w{n++}", Capture = new WgcCapture(device, hwnd, CaptureTargetKind.Window) });
             }
         }
+
+        if (cycles > 0) return RunCycles(device, targets[0].Capture.TargetHandle, targets[0].Capture.Kind, cycles, encoderName);
 
         FileStream? outFile = outPath is null ? null : File.Create(outPath);
         var startTicks = Stopwatch.GetTimestamp();
@@ -238,6 +242,36 @@ public static class CaptureSpike
         }
         if (outPath is not null) Console.WriteLine($"Wrote {outPath}");
         return errors == 0 ? 0 : 1;
+    }
+
+    /// <summary>Leak hunt: create/start/stop/dispose a capture N times and log process handles and memory.</summary>
+    private static int RunCycles(GraphicsDevice device, IntPtr handle, CaptureTargetKind kind, int cycles, string encoderName)
+    {
+        var proc = Process.GetCurrentProcess();
+        void Log(string label)
+        {
+            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+            proc.Refresh();
+            Console.WriteLine($"{label,-12} handles={proc.HandleCount,5} threads={proc.Threads.Count,3} ws={proc.WorkingSet64 / 1048576,4}MB private={proc.PrivateMemorySize64 / 1048576,4}MB");
+        }
+        Log("start");
+        for (var i = 1; i <= cycles; i++)
+        {
+            using (var cap = new WgcCapture(device, handle, kind))
+            {
+                IFrameEncoder? enc = encoderName == "jpeg" ? new JpegEncoder(15, 50) : null;
+                var frames = 0;
+                cap.FrameArrived += f => { frames++; enc?.Encode(f, _ => { }); };
+                cap.Start(captureCursor: true, showBorder: false);
+                Thread.Sleep(120);
+                cap.Stop();
+                enc?.Dispose();
+            }
+            if (i % 10 == 0 || i == cycles) Log($"cycle {i}");
+        }
+        Thread.Sleep(1000);
+        Log("settled");
+        return 0;
     }
 
     private static int ListTargets()

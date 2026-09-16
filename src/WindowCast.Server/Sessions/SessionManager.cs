@@ -88,20 +88,25 @@ public sealed class SessionManager : IDisposable
     {
         var before = Win32.EnumerateAltTabWindows().ToHashSet();
         var expectedPath = AppDiscovery.ImagePathForAppId(appIdOrPath);
+        // Match on the exe file name only: Windows 11 redirects the System32 notepad.exe to the Store Notepad
+        // through an app execution alias, so the full path of the new process differs from what was launched.
+        var expectedExe = expectedPath is null ? null : Path.GetFileName(expectedPath);
         AppDiscovery.Launch(appIdOrPath);
 
         for (var i = 0; i < 30; i++)
         {
             await Task.Delay(500);
+            // After 6 s with no name match, accept any new eligible window (aliases, launchers, renamed hosts).
+            var strict = expectedExe is not null && i < 12;
             foreach (var hwnd in Win32.EnumerateAltTabWindows())
             {
                 if (before.Contains(hwnd) || Win32.IsIconic(hwnd)) continue;
                 var b = Win32.GetFrameBounds(hwnd);
                 if (b.Width <= 300 || b.Height <= 200) continue;
-                if (expectedPath is not null)
+                if (strict)
                 {
                     var (path, _) = ProcessInfo.Describe(WindowDiscovery.OwningProcess(hwnd));
-                    if (!string.Equals(path, expectedPath, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!string.Equals(Path.GetFileName(path), expectedExe, StringComparison.OrdinalIgnoreCase)) continue;
                 }
                 if (_sessions.Values.Any(s => s.Handle == hwnd)) continue;
                 return CreateWindowSession(hwnd);

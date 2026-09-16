@@ -37,6 +37,7 @@ public sealed class TestServer : IAsyncDisposable
             TokenPath = tokenPath,
             Clock = clock,
             QuietLogging = true,
+            SkipAppWarmup = true,
             WebRoot = FindWebRoot(),
         });
         return new TestServer(host, clock, tokenPath);

@@ -12,4 +12,6 @@ public sealed class ServerOptions
     public TimeProvider Clock { get; init; } = TimeProvider.System;
     public string WebRoot { get; init; } = Path.Combine(AppContext.BaseDirectory, "wwwroot");
     public bool QuietLogging { get; init; }
+    /// <summary>Tests skip the Get-StartApps warm-up (spawns PowerShell).</summary>
+    public bool SkipAppWarmup { get; init; }
 }
